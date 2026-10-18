@@ -1,0 +1,26 @@
+{
+  "name": "distribuciones-norte-backend",
+  "version": "1.0.0",
+  "description": "Backend API REST N-Capas para Distribuciones y Servicios del Norte S.A.C. - Cibertec EFSRT II",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "cibertec",
+    "efsrtii",
+    "mssql",
+    "express",
+    "clean-architecture"
+  ],
+  "author": "Grupo N° 4 - Cibertec",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "morgan": "^1.10.0",
+    "mssql": "^11.0.1"
+  }
+}
