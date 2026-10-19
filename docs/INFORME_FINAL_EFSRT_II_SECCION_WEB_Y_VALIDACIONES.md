@@ -31,9 +31,10 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 │  [1] Dashboard & KPIs ──────────► Medidor SMART y Resumen Financiero   │
 │  [2] Procesar Pedido (SP) ──────► Emisión de Pedidos con Stored Proc   │
 │  [3] Reportes Exportables ──────► Inventario en Excel (.xlsx) y PDF    │
-│  [4] Inventario de Almacén ─────► Consulta de Stock y Catálogo         │
-│  [5] Clientes Institucionales ──► Registro de Municipalidades y Vasos  │
-│  [6] Historial de Pedidos ──────► Auditoría de Transacciones Pasadas   │
+│  [4] Inventario de Almacén ─────► Control de Stock Físico y Alertas    │
+│  [5] Clientes Institucionales ──► Directorio y Registro de Entidades   │
+│  [6] Historial de Pedidos ──────► Auditoría y Trazabilidad Detallada   │
+│  [*] Motor SQL Server (Sidebar) ► Monitor de Conectividad y Resiliencia│
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -94,11 +95,119 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.4 Módulos de Soporte: Inventario, Clientes e Historial de Pedidos
+### 2.4 Módulo 4: Control de Inventario y Catálogo de Almacén (Inventario de Almacén)
 
-* **Inventario de Almacén:** Catálogo completo de los 12 productos con código de barras EAN-13, categoría, stock actual y precio mayorista.
-* **Clientes Institucionales:** Directorio con RUC/DNI, razón social, dirección en la región Piura y teléfono de contacto.
-* **Historial de Pedidos:** Tabla de auditoría con la relación completa de órdenes despachadas, desglose de cantidades y montos totales.
+* **Propósito y Relevancia Operativa:**  
+  Este módulo centraliza la visibilidad operativa y financiera del inventario físico en tiempo real para el Jefe de Almacén y el equipo de compras de la sede Piura. Permite supervisar las existencias de los 12 productos estratégicos de consumo masivo, monitorear el valor económico inmovilizado en bodega y prevenir quiebres de inventario ante convocatorias de licitación pública o compras de emergencia.
+* **Componentes y Funcionalidades del Módulo:**
+  1. **Franja Superior de Métricas en Tiempo Real (Report Metrics Strip):**
+     * **Catálogo Activo:** Despliega el número total de productos disponibles que coinciden con los filtros aplicados (por defecto, los `12` productos clasificados en el catálogo general).
+     * **Unidades en Almacén:** Sumatoria acumulada del stock físico existente en las bodegas de la empresa (ej. `4,200 unidades`).
+     * **Valorización Total de Inventario:** Cálculo económico dinámico en Soles ($S/$) del inventario actual a costo mayorista ($\sum \text{StockActual} \times \text{PrecioUnitario}$), sincronizado con el indicador de SQL Server (`S/ 119,485.00`).
+  2. **Barra de Búsqueda Reactiva y Filtrado por Categorías:**
+     * **Búsqueda Instantánea:** Caja de texto con filtrado en memoria y base de datos que busca en tiempo real mientras el operador escribe, admitiendo tanto el nombre comercial del producto (ej. *"Arroz"*, *"Gloria"*, *"Primor"*) como su código de barras internacional **EAN-13** de 11 o 13 dígitos.
+     * **Selector de Familias de Productos:** Menú desplegable para segmentar el inventario por rubro: *Lácteos y Derivados*, *Granos, Harinas y Cereales*, *Aceites y Grasas Comestibles*, *Conservas de Pescado*, *Azúcares y Endulzantes*, o la opción *TODAS*.
+  3. **Tabla de Control Físico y Valorizado:**
+     * Estructura columnar detallada: Código identificador (`#ID`), Código de Barras EAN-13, Descripción Comercial Completa (incluyendo formato y gramaje), Categoría Relacional, Stock Físico Actual, Precio Mayorista Pactado ($S/$) y Subtotal Almacén ($S/$) por ítem.
+  4. **Semaforización Visual Inteligente del Nivel de Stock:**
+     * 🟢 **Suficiente (Insignia Verde):** Stock físico $\ge 100$ unidades. Indica abastecimiento óptimo para atender órdenes de compra de gran escala sin riesgo de desabastecimiento.
+     * 🔵 **Moderado (Insignia Celeste/Azul):** Stock entre $50$ y $99$ unidades. Existencias estables con recomendación de seguimiento semanal.
+     * 🔴 **Crítico (< 50) (Insignia Ámbar/Roja):** Stock físico $< 50$ unidades. Activa una alerta visual de reposición prioritaria para evitar incumplimientos contractuales con comités sociales.
+
+> 📸 *(Insertar aquí Captura de Pantalla: Figura 6 - Catálogo de Inventario con Indicadores de Stock, Filtros y Semaforización)*
+
+---
+
+### 2.5 Módulo 5: Directorio de Clientes Institucionales y Mayoristas (Clientes Institucionales)
+
+* **Propósito y Relevancia Comercial:**  
+  Gestiona el padrón oficial de entidades públicas y privadas que mantienen convenios de adquisición al por mayor con la distribuidora. Su objetivo principal es asegurar la correcta identificación fiscal y logística de los comités del Programa de Vaso de Leche (PVL), Municipalidades Provinciales y Distritales, comedores populares y colegios de la región Piura (Qali Warma), garantizando la validez tributaria para la posterior emisión de comprobantes de pago.
+* **Componentes y Funcionalidades del Módulo:**
+  1. **Cuadrícula de Tarjetas Institucionales (Institutional Cards Grid):**  
+     Presentación visual orientada a tarjetas que sintetiza la información clave de cada entidad compradora:
+     * **Razón Social:** Nombre formal de la institución o personería jurídica (ej. *Municipalidad Provincial de Piura*, *Comité Vaso de Leche - Castilla*).
+     * **Documento de Identidad Fiscal:** RUC de 11 dígitos para entidades jurídicas del Estado o DNI de 8 dígitos para comités con representante acreditado.
+     * **Dirección Fiscal y Punto de Despacho:** Ubicación geográfica para la entrega de mercadería dentro del departamento de Piura (ej. *Calle Tacna N° 420 - Catacaos*).
+     * **Teléfono de Enlace:** Línea directa del área de logística o adquisiciones de la entidad.
+     * **Insignia de Acreditación:** Sello distintivo *"Cliente Verificado Piura"*, indicando que la entidad cuenta con convenio marco y línea de despacho autorizada.
+  2. **Búsqueda Dinámica de Entidades:**  
+     Filtro rápido en el encabezado que localiza clientes de manera instantánea ingresando el RUC o fragmentos de la Razón Social.
+  3. **Formulario Modal de Registro de Clientes (`UserPlus`):**  
+     Al pulsar el botón **"Registrar Cliente Institucional"**, se abre un diálogo modal interactivo con validación de integridad:
+     * *RUC o DNI:* Campo validado con límite estricto de hasta 11 caracteres numéricos.
+     * *Razón Social o Nombre Institucional:* Denominación oficial requerida.
+     * *Dirección Fiscal / Sede de Entrega:* Dirección física obligatoria para la hoja de ruta.
+     * *Teléfono de Contacto:* Teléfono institucional para coordinación previa de entrega.
+     * **Integración Transaccional con SQL Server:** Al confirmar el formulario, la aplicación envía los datos al endpoint `POST /api/clientes`, el cual ejecuta la inserción relacional en la tabla física `Cliente`, recupera el nuevo código autogenerado con `SCOPE_IDENTITY() AS IdCliente` y actualiza la lista inmediatamente en pantalla con una confirmación visual animada.
+
+> 📸 *(Insertar aquí Captura de Pantalla: Figura 7 - Directorio de Clientes Institucionales y Formulario Modal de Registro)*
+
+---
+
+### 2.6 Módulo 6: Historial de Auditoría y Trazabilidad de Pedidos (Historial de Pedidos)
+
+* **Propósito y Relevancia de Control Interno:**  
+  Constituye la herramienta de fiscalización y trazabilidad transaccional de la empresa. Permite a los supervisores de almacén, auditores contables y administradores consultar el historial cronológico completo de todas las órdenes de compra emitidas en el sistema, asegurando que ninguna transacción quede sin respaldo documental ni exista duplicidad de despachos.
+* **Componentes y Funcionalidades del Módulo:**
+  1. **Franja Superior de Resumen Financiero y Auditoría:**
+     * **Total de Pedidos Registrados:** Conteo exacto de registros en la cabecera relacional `Pedido`.
+     * **Monto Acumulado Facturado:** Sumatoria en moneda nacional ($S/$) de todas las ventas formalizadas (`S/ 13,362.00` tras las pruebas de validación).
+     * **Insignia de Garantía:** *“100% Auditados en 3FN”*, que certifica que cada orden cumple con las reglas de integridad referencial de Tercera Forma Normal.
+  2. **Tabla Cronológica de Órdenes Despachadas:**
+     * **Número de Pedido Estandarizado:** Formato alfanumérico correlativo internacional (`PED-00001`, `PED-00002`, `PED-00003`, etc.).
+     * **Cliente Institucional y RUC/DNI:** Identificación inequívoca del comprador.
+     * **Marca de Tiempo Auditada (Timestamp):** Fecha y hora exacta de registro con precisión de milisegundos (`DD/MM/YYYY HH:mm:ss`), garantizando la no repudiación de la operación.
+     * **Total Facturado ($S/$):** Monto económico total liquidado para la orden.
+     * **Insignia de Estado Transaccional:** Etiqueta verde con icono de confirmación: `Procesado`.
+  3. **Ventana Modal de Detalle de Ítems (`DetallePedido`):**  
+     Al hacer clic en el botón de acción **"Ver Ítems"** (icono de inspección ocular):
+     * El sistema realiza una consulta asíncrona hacia la tabla hija `DetallePedido` vinculada mediante la clave foránea `IdPedido`.
+     * Despliega una vista de desglose por partida con: Código del Producto, Nombre Completo, Cantidad Despachada, Precio Unitario Mayorista y Subtotal Liquidado ($S/$).
+     * Permite validar al centavo que la sumatoria de las partidas coincide exactamente con el `TotalPedido` de la cabecera, demostrando la consistencia de datos entre tablas normalizadas.
+
+> 📸 *(Insertar aquí Captura de Pantalla: Figura 8 - Historial de Auditoría de Pedidos Despachados y Modal de DetallePedido)*
+
+---
+
+### 2.7 Componente de Infraestructura: Indicador del Motor SQL Server y Arquitectura Híbrida (Modo Resiliente)
+
+* **Propósito y Relevancia Arquitectural:**  
+  En el panel lateral de navegación (Sidebar) se encuentra integrado de forma permanente el widget de estado del sistema: **"Motor SQL Server"**. Este componente es la evidencia tangible de una de las innovaciones arquitecturales más destacadas del proyecto: la **Arquitectura Híbrida con Tolerancia a Fallos y Alta Disponibilidad (High Availability)**.
+* **Explicación de los Dos Estados Operativos del Sistema:**
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│             ARQUITECTURA DE CONEXIÓN HÍBRIDA Y ALTA DISPONIBILIDAD     │
+│                                                                        │
+│  [ENTORNO LOCAL / ON-PREMISE]                                          │
+│   Frontend React ──► Backend Express ──► [sqlcmdBridge / Memoria Comp] │
+│                                         └──► Microsoft SQL Server      │
+│                                              (BD_DistribucionesNorte)  │
+│                                              Badge: CONECTADO A BD 🟢 │
+│                                                                        │
+│  [ENTORNO NUBE PÚBLICA / DEMO 24/7]                                    │
+│   Vercel (HTTPS) ──► Render API (HTTPS) ──► [seedMemory.js / Fallback] │
+│                                             Simulación ACID y Reglas   │
+│                                             Badge: MODO RESILIENTE 🟡  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+  1. 🟢 **Estado 1: Conectado a BD (Conexión Física Nativa a Microsoft SQL Server):**
+     * **Cuándo se activa:** En el entorno local (`http://localhost:5190/` y `http://localhost:4000/api`) cuando el servicio `MSSQLSERVER` de Microsoft SQL Server se encuentra en ejecución en la máquina anfitriona.
+     * **Identificación Visual:** En la base del menú lateral se muestra un icono verde con check, el texto **`Conectado a BD`** y el nombre de la base de datos física: **`BD_DistribucionesNorte`**.
+     * **Mecanismo Técnico:** El backend utiliza el puente de enlace nativo [sqlcmdBridge.js](file:///e:/Cursos/Cibertec/Ciclo%203/EFSRTII/Proyecto/backend/src/config/sqlcmdBridge.js) ejecutándose sobre **Memoria Compartida (Shared Memory)** con autenticación integrada de Windows. Toda inserción, actualización, consulta y ejecución de `sp_ProcesarPedidoInstitucional` se realiza directamente sobre el motor de base de datos relacional físico.
+  2. 🟡 **Estado 2: Modo Resiliente (Memoria Transaccional de Alta Disponibilidad):**
+     * **Cuándo se activa:** En el despliegue de producción en la nube pública ([https://proyecto-efsrtii.vercel.app/](https://proyecto-efsrtii.vercel.app/)) o cuando la instancia física local de SQL Server se encuentra apagada o inaccesible temporalmente.
+     * **Identificación Visual:** En el menú lateral se muestra un icono ámbar de alerta técnica, el texto **`Modo Resiliente`** y el subtítulo **`Memoria Transaccional`**.
+     * **Fundamento e Importancia para la Evaluación:**  
+       Los servidores en la nube pública (como Vercel o Render) no poseen un canal VPN directo para ingresar a la red doméstica privada donde reside la laptop con SQL Server. En una arquitectura tradicional no tolerante a fallos, cualquier docente o usuario que intentara ingresar al enlace web en la nube recibiría una pantalla en blanco con errores `500 Internal Server Error` o `ECONNREFUSED`.  
+       Para resolver esta problemática con excelencia profesional, se implementó el patrón de diseño **Circuit Breaker con Almacén Resiliente Sincronizado** ([seedMemory.js](file:///e:/Cursos/Cibertec/Ciclo%203/EFSRTII/Proyecto/backend/src/config/seedMemory.js)). Cuando el backend detecta que la base de datos física no está accesible, conmuta de forma transparente al motor en memoria, permitiendo que:
+       * El usuario pueda explorar el catálogo de productos con sus 12 registros exactos.
+       * El panel de control (Dashboard) mantenga exactamente los mismos $S/ 13,200.00$ y $S/ 119,485.00$ calculados en SQL Server.
+       * Se puedan simular pedidos institucionales con validación estricta de stock (rechazando solicitudes excesivas con ROLLBACK emulado).
+       * Se exporten reportes en Excel y PDF con total normalidad las 24 horas del día.
+
+> 📸 *(Insertar aquí Captura de Pantalla: Figura 9 - Indicador de Conexión en el Sidebar: Motor SQL Server Conectado vs. Modo Resiliente)*
 
 ---
 
@@ -146,7 +255,7 @@ Para demostrar la integración de la **Arquitectura en 3 Capas**, se ejecutaron 
 | **Pedidos Procesados** | `3` | `3` | Coincidencia 100% |
 | **Stock Crítico (< 50)** | `0` | `0` | Coincidencia 100% |
 
-> 📸 *(Insertar aquí Captura Comparativa: Figura 6 - Tarjetas del Dashboard Web vs. Cuadrícula de Resultados en SSMS)*
+> 📸 *(Insertar aquí Captura Comparativa: Figura 10 - Validación Comparativa CP-01: Métricas del Dashboard Web vs. Consulta de Agregación en SSMS)*
 
 ---
 
@@ -191,7 +300,7 @@ Para demostrar la integración de la **Arquitectura en 3 Capas**, se ejecutaron 
 * **Análisis de Resultados:**  
   Se constata que el stock disminuyó en exactamente 20 unidades (de 1,500 a 1,480) y que se generó simultáneamente la cabecera del pedido con su detalle correspondiente. Ambas operaciones se consolidaron atómicamente gracias a la sentencia `COMMIT TRANSACTION`.
 
-> 📸 *(Insertar aquí Captura Comparativa: Figura 7 - Tarjeta Verde en la Web vs. Registros Actualizados en SSMS)*
+> 📸 *(Insertar aquí Captura Comparativa: Figura 11 - Validación Comparativa CP-02: Tarjeta Verde de COMMIT en la Web vs. Registros Actualizados en SSMS)*
 
 ---
 
@@ -219,7 +328,7 @@ Para demostrar la integración de la **Arquitectura en 3 Capas**, se ejecutaron 
 * **Análisis de Resultados:**  
   `Pedidos_Erroneos_Insertados` arroja `0`. El motor SQL Server interceptó el déficit mediante la estructura condicional de `sp_ProcesarPedidoInstitucional` y ejecutó `ROLLBACK TRANSACTION`, preservando la integridad del inventario de la empresa.
 
-> 📸 *(Insertar aquí Captura Comparativa: Figura 8 - Tarjeta Roja de ROLLBACK vs. Consulta de Stock Intacto en SSMS)*
+> 📸 *(Insertar aquí Captura Comparativa: Figura 12 - Validación Comparativa CP-03: Tarjeta Roja de ROLLBACK vs. Consulta de Stock Intacto en SSMS)*
 
 ---
 
@@ -237,7 +346,7 @@ Para demostrar la integración de la **Arquitectura en 3 Capas**, se ejecutaron 
 * **Análisis de Resultados:**  
   Se constata que los 12 productos del catálogo figuran en el reporte ordenados por su valorización total decreciente. Aquellos productos sin ventas históricas se muestran con `0` unidades vendidas mediante la función `ISNULL(SUM(dp.Cantidad), 0)`, confirmando la correcta implementación del `LEFT JOIN`.
 
-> 📸 *(Insertar aquí Captura Comparativa: Figura 9 - Tabla de Reportes Web vs. Salida de sp_ReporteConsolidadoInventario)*
+> 📸 *(Insertar aquí Captura Comparativa: Figura 13 - Validación Comparativa CP-04: Tabla de Reportes Web vs. Salida de sp_ReporteConsolidadoInventario en SSMS)*
 
 ---
 
