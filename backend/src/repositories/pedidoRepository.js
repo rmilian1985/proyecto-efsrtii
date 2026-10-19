@@ -7,7 +7,7 @@
  * ==============================================================================
  */
 
-const { getPool, sql } = require('../config/db');
+const { getPool, sql, sqlcmdBridge } = require('../config/db');
 const memoryStore = require('../config/seedMemory');
 
 class PedidoRepository {
@@ -41,7 +41,12 @@ class PedidoRepository {
       };
     }
 
-    // Fallback de resiliencia en memoria
+    // Ejecución directa en Microsoft SQL Server mediante puente nativo sqlcmd (Shared Memory)
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.procesarPedidoInstitucional(idCliente, idProducto, cantidadSolicitada);
+    }
+
+    // Fallback de resiliencia en memoria (solo para entornos nube sin SQL Server local)
     const producto = memoryStore.productos.find(p => p.IdProducto === parseInt(idProducto, 10));
     const cliente = memoryStore.clientes.find(c => c.IdCliente === parseInt(idCliente, 10));
 
@@ -122,6 +127,11 @@ class PedidoRepository {
       `);
       return result.recordset;
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getPedidos();
+    }
+
     return memoryStore.pedidos;
   }
 
@@ -149,6 +159,11 @@ class PedidoRepository {
         `);
       return result.recordset;
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getDetallePedido(idPedido);
+    }
+
     const pedido = memoryStore.pedidos.find(p => p.IdPedido === parseInt(idPedido, 10));
     return pedido ? pedido.detalles : [];
   }

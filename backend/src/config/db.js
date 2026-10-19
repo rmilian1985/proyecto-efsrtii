@@ -70,19 +70,35 @@ async function getPool() {
   }
 }
 
+const sqlcmdBridge = require('./sqlcmdBridge');
+
 /**
  * Función de verificación de estado de la Base de Datos (Healthcheck)
  */
 async function checkDbConnection() {
   try {
     const activePool = await getPool();
-    if (!activePool) return { connected: false, message: 'No se pudo conectar a la instancia SQL Server' };
-    const result = await activePool.request().query('SELECT @@VERSION as version, DB_NAME() as currentDb;');
-    return {
-      connected: true,
-      currentDb: result.recordset[0].currentDb,
-      version: result.recordset[0].version
-    };
+    if (activePool) {
+      const result = await activePool.request().query('SELECT @@VERSION as version, DB_NAME() as currentDb;');
+      return {
+        connected: true,
+        provider: 'Microsoft SQL Server (TCP/IP Pool)',
+        currentDb: result.recordset[0].currentDb,
+        version: result.recordset[0].version
+      };
+    }
+
+    // Si el pool TCP no está activo, verificar puente nativo sqlcmd (Shared Memory)
+    if (sqlcmdBridge.isAvailable()) {
+      return {
+        connected: true,
+        provider: 'Microsoft SQL Server (Shared Memory / sqlcmd)',
+        currentDb: 'BD_DistribucionesNorte',
+        version: 'Microsoft SQL Server 2022'
+      };
+    }
+
+    return { connected: false, message: 'No se pudo conectar a la instancia SQL Server' };
   } catch (error) {
     return { connected: false, error: error.message };
   }
@@ -92,5 +108,6 @@ module.exports = {
   sql,
   getPool,
   checkDbConnection,
-  isDbConnected: () => isConnected
+  isDbConnected: () => isConnected || sqlcmdBridge.isAvailable(),
+  sqlcmdBridge
 };

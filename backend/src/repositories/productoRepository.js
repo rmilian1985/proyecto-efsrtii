@@ -6,7 +6,7 @@
  * ==============================================================================
  */
 
-const { getPool, sql } = require('../config/db');
+const { getPool, sql, sqlcmdBridge } = require('../config/db');
 const memoryStore = require('../config/seedMemory');
 
 class ProductoRepository {
@@ -29,6 +29,11 @@ class ProductoRepository {
       `);
       return result.recordset;
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getProductos();
+    }
+
     return memoryStore.productos;
   }
 
@@ -52,6 +57,11 @@ class ProductoRepository {
         `);
       return result.recordset[0] || null;
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getProductoById(id);
+    }
+
     return memoryStore.productos.find(p => p.IdProducto === parseInt(id, 10)) || null;
   }
 
@@ -65,6 +75,11 @@ class ProductoRepository {
       `);
       return result.recordset;
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getCategorias();
+    }
+
     return memoryStore.categorias;
   }
 }

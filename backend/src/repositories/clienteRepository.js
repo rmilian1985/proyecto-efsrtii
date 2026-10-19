@@ -6,7 +6,7 @@
  * ==============================================================================
  */
 
-const { getPool, sql } = require('../config/db');
+const { getPool, sql, sqlcmdBridge } = require('../config/db');
 const memoryStore = require('../config/seedMemory');
 
 class ClienteRepository {
@@ -20,6 +20,11 @@ class ClienteRepository {
       `);
       return result.recordset;
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getClientes();
+    }
+
     // Fallback en memoria
     return memoryStore.clientes;
   }
@@ -36,6 +41,11 @@ class ClienteRepository {
         `);
       return result.recordset[0] || null;
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getClienteById(id);
+    }
+
     return memoryStore.clientes.find(c => c.IdCliente === parseInt(id, 10)) || null;
   }
 
@@ -54,6 +64,11 @@ class ClienteRepository {
         `);
       return { id: result.recordset[0].IdCliente, rucDni, razonSocial, direccion, telefono };
     }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.createCliente({ rucDni, razonSocial, direccion, telefono });
+    }
+
     const newId = memoryStore.clientes.length + 1;
     const newClient = { IdCliente: newId, RUC_DNI: rucDni, RazonSocial: razonSocial, Direccion: direccion, Telefono: telefono };
     memoryStore.clientes.push(newClient);

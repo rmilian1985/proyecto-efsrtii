@@ -7,7 +7,7 @@
  * ==============================================================================
  */
 
-const { getPool, sql } = require('../config/db');
+const { getPool, sql, sqlcmdBridge } = require('../config/db');
 const memoryStore = require('../config/seedMemory');
 
 class ReporteRepository {
@@ -20,6 +20,10 @@ class ReporteRepository {
     if (pool) {
       const result = await pool.request().execute('sp_ReporteConsolidadoInventario');
       return result.recordset;
+    }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getReporteConsolidado();
     }
 
     // Fallback en memoria agregando ventas sobre productos
@@ -64,6 +68,10 @@ class ReporteRepository {
           (SELECT COUNT(*) FROM Producto WHERE StockActual < 50) AS ProductosStockCritico;
       `);
       return result.recordset[0];
+    }
+
+    if (sqlcmdBridge.isAvailable()) {
+      return await sqlcmdBridge.getKpis();
     }
 
     const ventasTotales = memoryStore.pedidos
