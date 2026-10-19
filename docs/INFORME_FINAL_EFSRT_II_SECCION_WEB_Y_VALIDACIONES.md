@@ -20,7 +20,133 @@ Para la evaluación del Avance Final, el sistema se encuentra completamente oper
 
 ---
 
-## 2. Manual de Usuario y Funcionamiento de la Aplicación Web
+## 2. Arquitectura Tecnológica, Stack de Herramientas y Metodología de Construcción
+
+Para superar las deficiencias de gestión manual en hojas de cálculo no centralizadas detectadas en los avances previos, el sistema fue concebido bajo estándares de ingeniería de software empresarial, asegurando alta disponibilidad, escalabilidad horizontal, seguridad perimetral y estricta integridad relacional.
+
+### 2.1 Enfoque Arquitectural: Arquitectura en 3 Capas Desacopladas (N-Tier Architecture)
+
+El sistema implementa el patrón clásico de **Arquitectura en Tres Capas (Capa de Presentación, Capa de Negocio/API y Capa de Datos)**, desacoplando completamente la interfaz gráfica de usuario del motor transaccional de base de datos:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   CAPA 1: PRESENTACIÓN (FRONTEND SPA)                  │
+│                     React 19 • Vite 6 • Vanilla CSS                    │
+│  - Dashboard con velocímetro SMART y tarjetas de KPIs en tiempo real   │
+│  - Formulario transaccional reactivo para invocar Stored Procedure     │
+│  - Generador de reportes cliente: Excel (.xlsx) y PDF vectorizado      │
+│  - Control de catálogo con semaforización de stock e historial 3FN     │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Peticiones Asíncronas HTTPS / REST
+                                    │ Carga útil en formato JSON
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                CAPA 2: LÓGICA DE NEGOCIO Y API REST (BACKEND)          │
+│                       Node.js 24 LTS • Express.js 4                    │
+│  - Controladores (Controllers): Validación de payload y códigos HTTP   │
+│  - Servicios (Services): Lógica de aplicación y benchmarking SMART     │
+│  - Repositorios (DAL): Consultas parametrizadas anti inyección SQL     │
+│  - Conectividad Dual: Pool TCP ('mssql') y Puente Nativo ('sqlcmd')    │
+│  - Contingencia Resiliente: Almacén transaccional en memoria (RAM)     │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Protocolo TDS / Puerto TCP 1433
+                                    │ o Memoria Compartida (Shared Memory)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│               CAPA 3: PERSISTENCIA Y TRANSACCIONALIDAD (DATOS)         │
+│                     Microsoft SQL Server 2022 (T-SQL)                  │
+│  - Modelo Relacional Normalizado en Tercera Forma Normal (3FN)         │
+│  - Procedimiento Almacenado Transaccional: sp_ProcesarPedidoInstituc.  │
+│  - Procedimiento Almacenado de Agregación: sp_ReporteConsolidadoInvent.│
+│  - Disparador de Integridad Contable: trg_ValidarDetallePedido         │
+│  - Índices Secundarios Non-Clustered (B-Tree) para optimizar consultas │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+* **Ventajas del Desacoplamiento por Capas:**
+  1. **Seguridad y Confidencialidad:** Las credenciales de base de datos (`sa`, contraseñas, cadena de conexión) residen exclusivamente en variables de entorno del servidor backend (`.env`). El cliente web (navegador) nunca tiene acceso directo al motor SQL, impidiendo ataques de fuerza bruta o filtración de credenciales.
+  2. **Mantenibilidad y Escalabilidad:** Si la empresa decide migrar su base de datos de un servidor local a la nube (ej. Azure SQL Database o Amazon RDS), el frontend no sufre modificación alguna; únicamente se ajusta la cadena de conexión en el backend.
+  3. **Reutilización de Lógica de Negocio:** La misma API REST desarrollada puede dar servicio en el futuro a una aplicación móvil para repartidores en ruta o integrarse con el sistema de facturación electrónica de la SUNAT sin duplicar código.
+
+---
+
+### 2.2 Ficha Técnica del Stack Tecnológico (Lenguajes, Frameworks y Librerías)
+
+A continuación se detalla la matriz de tecnologías de última generación seleccionadas para la construcción del sistema:
+
+| Capa / Ámbito | Tecnología / Herramienta | Versión | Rol y Justificación Técnica en el Proyecto |
+| :--- | :--- | :---: | :--- |
+| **Base de Datos** | **Microsoft SQL Server** | 2022 (v16.x) | Sistema Gestor de Base de Datos Relacional (RDBMS) de clase empresarial. Garantiza transacciones ACID, soporte nativo para bloqueos concurrentes `UPDLOCK` y procesamiento procedural eficiente con T-SQL. |
+| **Lenguaje de BD** | **Transact-SQL (T-SQL)** | ANSI/ISO | Dialecto procedural avanzado de SQL. Utilizado para codificar las reglas transaccionales (`sp_ProcesarPedidoInstitucional`), consultas agregadas con `LEFT JOIN` y triggers de validación. |
+| **Entorno Servidor** | **Node.js** | 24.18.0 LTS | Entorno de ejecución asíncrono para JavaScript basado en el motor V8 de Google Chrome. Ofrece un modelo de concurrencia no bloqueante (*Event Loop*) con alta velocidad para operaciones I/O. |
+| **Framework Backend**| **Express.js** | 4.19.2 | Micro-framework web minimalista para Node.js. Provee enrutamiento modular RESTful, manejo de middleware, parseo de JSON y control de políticas CORS. |
+| **Driver de Conexión**| **mssql / Tedious** | 11.0.1 | Librería oficial de Node.js para conectar con SQL Server mediante el protocolo Tabular Data Stream (TDS), implementando el patrón Connection Pool de 15 conexiones reciclables. |
+| **Puente Local** | **Microsoft sqlcmd Utility** | 16.0 | Herramienta de línea de comandos nativa de Microsoft integrada en Windows. Permite ejecutar sentencias T-SQL sobre Memoria Compartida (*Shared Memory*) con autenticación Windows integrada, garantizando latencias inferiores a 50 ms. |
+| **Framework Frontend**| **React** | 19.0.0 | Biblioteca líder para interfaces de usuario declarativas basadas en componentes reutilizables y Hooks (`useState`, `useEffect`, `useMemo`). Permite actualizar el DOM de forma reactiva sin recargar la página. |
+| **Empaquetador Web** | **Vite** | 6.0.5 | Herramienta de compilación y servidor de desarrollo ultrarrápido (*Next Generation Frontend Tooling*) con Hot Module Replacement (HMR) y empaquetado optimizado mediante Rollup. |
+| **Diseño y Estilos** | **Vanilla CSS3 Moderno** | CSS3 Grid/Flex | Maquetación responsiva personalizada sin frameworks pesados, aplicando diseño corporativo *Dark Slate Glassmorphism*, variables CSS nativas (*Design Tokens*) y contrastes accesibles WCAG. |
+| **Iconografía** | **Lucide React** | 0.468.0 | Paquete de iconos vectoriales SVG limpios y consistentes que enriquecen la usabilidad del sistema (camión de despacho, base de datos, paquetes, auditoría, etc.). |
+| **Exportación Excel** | **SheetJS (xlsx)** | 0.18.5 | Librería JavaScript pura para generar archivos de hoja de cálculo binarios `.xlsx` en el navegador del cliente con formato de celdas monetarias, anchos de columna dinámicos y totales. |
+| **Exportación PDF** | **jsPDF & jsPDF-AutoTable** | 2.5.2 / 3.8.4 | Motor de renderizado vectorial de documentos PDF en cliente. Diseña membretes corporativos, tablas estructuradas con paginación automática y franja de firmas de auditoría. |
+| **Efectos Visuales** | **canvas-confetti** | 1.9.4 | Micro-animación interactiva de partículas para feedback emocional inmediato ante transacciones exitosas (COMMIT), elevando la experiencia de usuario (UX). |
+
+---
+
+### 2.3 Herramientas de Desarrollo, Gestión y Plataformas Cloud (DevOps)
+
+Durante todo el ciclo de vida del proyecto se emplearon herramientas profesionales de la industria para garantizar la calidad, trazabilidad y reproducibilidad del código fuente:
+
+1. **Entorno de Desarrollo Integrado (IDE):**
+   * **Visual Studio Code / Antigravity IDE:** Editor principal configurado con extensiones de soporte para sintaxis JSX, Node.js Debugger, IntelliSense para SQL y formateadores automáticos Prettier/ESLint.
+2. **Administrador de Base de Datos:**
+   * **Microsoft SQL Server Management Studio 20 (SSMS):** Utilizado para la modelación de esquemas relacionales, inspección de planes de ejecución gráfica (*Execution Plans*), creación de índices secundarios Non-Clustered en árbol B (*B-Tree*) y ejecución interactiva de scripts de prueba.
+3. **Control de Versiones y Trabajo Colaborativo:**
+   * **Git:** Sistema de control de versiones distribuido para el registro cronológico de commits, trazabilidad de cambios y control de ramas (*branching*).
+   * **GitHub:** Repositorio centralizado en la nube (`https://github.com/rmilian1985/proyecto-efsrtii`), facilitando la revisión de código por pares y sirviendo como disparador de despliegue continuo.
+4. **Infraestructura Cloud y Despliegue Continuo (CI/CD):**
+   * **Vercel (Frontend Hosting):** Alojamiento de alto rendimiento en red de distribución de contenidos (*Edge CDN Global*) con certificación SSL/TLS automática (HTTPS) para el cliente React.
+   * **Render.com (Backend API PaaS):** Despliegue de la API REST Node.js sobre un contenedor Linux aislado con monitorización de salud (*healthcheck*) y reinicio automático ante excepciones no controladas.
+5. **Herramientas de Pruebas de Software:**
+   * **Postman:** Banco de pruebas para verificar contratos de API HTTP, cabeceras, códigos de estado (200, 201, 400, 404, 500) y tiempos de latencia de los endpoints.
+
+---
+
+### 2.4 Patrones de Diseño de Software Implementados
+
+La robustez del aplicativo radica en la adopción sistemática de patrones de diseño de software reconocidos por la industria:
+
+1. **Patrón de Arquitectura por Capas: Controlador - Servicio - Repositorio (Controller-Service-Repository):**
+   * **Capa Controladora (`src/controllers`):** Responsable única del protocolo HTTP. Recibe los parámetros de entrada (`req.body`, `req.params`), delega la operación a la capa de servicios y emite la respuesta con el código semántico correspondiente (`res.status().json()`).
+   * **Capa de Servicios (`src/services`):** Contiene la lógica de negocio pura de la empresa. Orquesta el cálculo del indicador de desempeño SMART, mide los milisegundos de ejecución con `perf_hooks.performance.now()` y coordina las reglas que trascienden a una única tabla.
+   * **Capa de Repositorio o Acceso a Datos (`src/repositories`):** Aísla por completo las consultas SQL del resto del sistema. Ningún controlador o servicio conoce la sintaxis T-SQL; simplemente solicitan `pedidoRepository.procesarPedidoInstitucional(...)` o `reporteRepository.getKpis()`.
+2. **Patrón Circuit Breaker & Fallback Store (Tolerancia a Fallos y Alta Disponibilidad):**
+   * En entornos de producción en la nube (Vercel/Render) donde no existe un canal VPN hacia la base de datos local del usuario, el sistema conmuta de forma transparente a un almacén de memoria sincronizado (`seedMemory.js`), evitando pantallas en blanco o caídas de servicio (error 500).
+3. **Patrón Transaccional con Bloqueo Concurrente (`UPDLOCK` en T-SQL):**
+   * Empleado en `sp_ProcesarPedidoInstitucional` para prevenir la anomalía de actualización perdida (*Lost Update*) cuando múltiples despachadores intentan emitir órdenes sobre el mismo producto de forma simultánea.
+
+---
+
+### 2.5 Metodología de Construcción Ágil (Desarrollo por Avances)
+
+El proyecto se estructuró siguiendo el marco de trabajo **Scrum / Desarrollo Incremental e Iterativo**, alineado a los tres avances curriculares exigidos por Cibertec:
+
+* **Avance 1 (Sprint 1 - Análisis, Modelado e Integridad):**
+  * Diagnóstico situacional de la empresa *Distribuciones y Servicios del Norte S.A.C.*
+  * Formulación del Objetivo SMART (reducción del tiempo de atención de 15 min a milisegundos y cero descuadres).
+  * Levantamiento del modelo entidad-relación y normalización estricta hasta la Tercera Forma Normal (3FN).
+* **Avance 2 (Sprint 2 - Lógica Procedural y Optimización en SQL Server):**
+  * Codificación de procedimientos almacenados transaccionales (`sp_ProcesarPedidoInstitucional`) y de reporte (`sp_ReporteConsolidadoInventario`).
+  * Implementación de disparadores de integridad (`trg_ValidarDetallePedido`) y creación de índices secundarios Non-Clustered.
+  * Pruebas de estrés y validación de las propiedades ACID en SQL Server Management Studio.
+* **Avance 3 y Final (Sprint 3 - Desarrollo Full-Stack, Integración y Validación Cruzada):**
+  * Construcción de la interfaz web responsiva en React 19 y desarrollo de la API RESTful en Node.js/Express.
+  * Implementación de la exportación a formatos empresariales (Excel y PDF oficial firmado).
+  * Despliegue en la nube pública (Vercel y Render) con certificación de seguridad SSL.
+  * Ejecución del protocolo de validaciones cruzadas entre la aplicación web y SQL Server Management Studio para la elaboración del informe final.
+
+---
+
+## 3. Manual de Usuario y Funcionamiento de la Aplicación Web
 
 La aplicación web ha sido diseñada bajo estándares modernos de experiencia de usuario (UX/UI), orientada al personal de ventanilla, jefatura de almacén y gerencia general de **Distribuciones y Servicios del Norte S.A.C.**
 
@@ -40,7 +166,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.1 Módulo 1: Panel de Control Gerencial & Metas SMART (Dashboard)
+### 3.1 Módulo 1: Panel de Control Gerencial & Metas SMART (Dashboard)
 
 * **Propósito:** Brinda una vista panorámica en tiempo real de la salud financiera y operativa de la empresa.
 * **Componentes Principales:**
@@ -59,7 +185,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.2 Módulo 2: Módulo Transaccional de Pedidos Institucionales (Procesar Pedido)
+### 3.2 Módulo 2: Módulo Transaccional de Pedidos Institucionales (Procesar Pedido)
 
 * **Propósito:** Permite a los operadores registrar pedidos institucionales ejecutando directamente el procedimiento almacenado transaccional `sp_ProcesarPedidoInstitucional` en SQL Server.
 * **Paso a Paso para el Operador:**
@@ -79,7 +205,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.3 Módulo 3: Reportes Gerenciales Consolidados y Exportación (Excel y PDF)
+### 3.3 Módulo 3: Reportes Gerenciales Consolidados y Exportación (Excel y PDF)
 
 * **Propósito:** Generar reportes auditables para el Jefe de Almacén y Auditoría Contable, alimentados del Stored Procedure `sp_ReporteConsolidadoInventario`.
 * **Paso a Paso:**
@@ -95,7 +221,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.4 Módulo 4: Control de Inventario y Catálogo de Almacén (Inventario de Almacén)
+### 3.4 Módulo 4: Control de Inventario y Catálogo de Almacén (Inventario de Almacén)
 
 * **Propósito y Relevancia Operativa:**  
   Este módulo centraliza la visibilidad operativa y financiera del inventario físico en tiempo real para el Jefe de Almacén y el equipo de compras de la sede Piura. Permite supervisar las existencias de los 12 productos estratégicos de consumo masivo, monitorear el valor económico inmovilizado en bodega y prevenir quiebres de inventario ante convocatorias de licitación pública o compras de emergencia.
@@ -118,7 +244,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.5 Módulo 5: Directorio de Clientes Institucionales y Mayoristas (Clientes Institucionales)
+### 3.5 Módulo 5: Directorio de Clientes Institucionales y Mayoristas (Clientes Institucionales)
 
 * **Propósito y Relevancia Comercial:**  
   Gestiona el padrón oficial de entidades públicas y privadas que mantienen convenios de adquisición al por mayor con la distribuidora. Su objetivo principal es asegurar la correcta identificación fiscal y logística de los comités del Programa de Vaso de Leche (PVL), Municipalidades Provinciales y Distritales, comedores populares y colegios de la región Piura (Qali Warma), garantizando la validez tributaria para la posterior emisión de comprobantes de pago.
@@ -144,7 +270,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.6 Módulo 6: Historial de Auditoría y Trazabilidad de Pedidos (Historial de Pedidos)
+### 3.6 Módulo 6: Historial de Auditoría y Trazabilidad de Pedidos (Historial de Pedidos)
 
 * **Propósito y Relevancia de Control Interno:**  
   Constituye la herramienta de fiscalización y trazabilidad transaccional de la empresa. Permite a los supervisores de almacén, auditores contables y administradores consultar el historial cronológico completo de todas las órdenes de compra emitidas en el sistema, asegurando que ninguna transacción quede sin respaldo documental ni exista duplicidad de despachos.
@@ -169,7 +295,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-### 2.7 Componente de Infraestructura: Indicador del Motor SQL Server y Arquitectura Híbrida (Modo Resiliente)
+### 3.7 Componente de Infraestructura: Indicador del Motor SQL Server y Arquitectura Híbrida (Modo Resiliente)
 
 * **Propósito y Relevancia Arquitectural:**  
   En el panel lateral de navegación (Sidebar) se encuentra integrado de forma permanente el widget de estado del sistema: **"Motor SQL Server"**. Este componente es la evidencia tangible de una de las innovaciones arquitecturales más destacadas del proyecto: la **Arquitectura Híbrida con Tolerancia a Fallos y Alta Disponibilidad (High Availability)**.
@@ -211,7 +337,7 @@ La aplicación web ha sido diseñada bajo estándares modernos de experiencia de
 
 ---
 
-## 3. Protocolo de Pruebas y Validaciones Cruzadas (Web vs. SQL Server)
+## 4. Protocolo de Pruebas y Validaciones Cruzadas (Web vs. SQL Server)
 
 Para demostrar la integración de la **Arquitectura en 3 Capas**, se ejecutaron pruebas de extremo a extremo contrastando las acciones en la interfaz web contra el motor de base de datos relacional **Microsoft SQL Server Management Studio (SSMS)**.
 
@@ -350,7 +476,7 @@ Para demostrar la integración de la **Arquitectura en 3 Capas**, se ejecutaron 
 
 ---
 
-## 4. Conclusiones de la Implementación Final
+## 5. Conclusiones de la Implementación Final
 
 1. **Cumplimiento Sobresaliente del Objetivo SMART:**  
    Se logró una **reducción del 99.8% en el tiempo de atención** de pedidos institucionales (de 15 minutos manuales a 18 milisegundos automatizados), superando ampliamente la meta del 86% establecida para el ciclo académico.
